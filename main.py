@@ -1,7 +1,10 @@
 import argparse
 import concurrent.futures
 import os
-import subprocess
+import warnings
+
+# Suppress specific warnings from PIL
+warnings.filterwarnings("ignore", category=UserWarning, module="PIL.Image")
 
 import numpy as np
 from PIL import Image
@@ -70,14 +73,12 @@ def get_element_details(elements_folder):
 
 
 def create_mosaic(input_image_path, output_image_path, elements_folder):
-    # Resize input image using ImageMagick
-    subprocess.run(
-        f"convert {input_image_path} -colorspace sRGB -resize {OUTPUT_IMAGE_SIZE}x {output_image_path}",
-        shell=True,
+    # Load, resize and convert input image to numpy array using PIL
+    input_image = Image.open(input_image_path).convert("RGB")
+    input_image = input_image.resize(
+        (OUTPUT_IMAGE_SIZE, OUTPUT_IMAGE_SIZE), Image.Resampling.LANCZOS
     )
-
-    # Load and convert input image to numpy array
-    input_array = np.array(Image.open(output_image_path).convert("RGB"))
+    input_array = np.array(input_image)
 
     # Initialize output array
     output_array = np.zeros((OUTPUT_IMAGE_SIZE, OUTPUT_IMAGE_SIZE, 3), dtype=np.uint8)
