@@ -11,7 +11,6 @@ A tool to create mosaic art using custom emojis from your Slack workspace.
 
 - Python 3.x
 - Slack API Token
-- ImageMagick (for image processing)
 
 ## Setup
 
