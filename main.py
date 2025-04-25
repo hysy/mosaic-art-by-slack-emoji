@@ -3,6 +3,8 @@ import concurrent.futures
 import os
 import warnings
 
+from tqdm import tqdm
+
 # Suppress specific warnings from PIL
 warnings.filterwarnings("ignore", category=UserWarning, module="PIL.Image")
 
@@ -59,9 +61,11 @@ def process_chunk(start_x, start_y, input_array, element_details, color_tree):
 def get_element_details(elements_folder):
     elements_detail = []
     elements_dir = os.path.join(os.path.dirname(__file__), elements_folder)
+    element_files = os.listdir(elements_dir)
 
-    # Preload and cache all element images
-    for ep in os.listdir(elements_dir):
+    # Preload and cache all element images with progress bar
+    print("Loading element images...")
+    for ep in tqdm(element_files, desc="Loading elements"):
         element_path = os.path.join(elements_dir, ep)
         element_array = get_element_image_array(element_path)
         element_average_color = tuple(np.mean(element_array, axis=(0, 1)).astype(int))
@@ -73,23 +77,34 @@ def get_element_details(elements_folder):
 
 
 def create_mosaic(input_image_path, output_image_path, elements_folder):
+    print("Starting mosaic creation process...")
+
     # Load, resize and convert input image to numpy array using PIL
+    print("Loading and preprocessing input image...")
     input_image = Image.open(input_image_path).convert("RGB")
     input_image = input_image.resize(
         (OUTPUT_IMAGE_SIZE, OUTPUT_IMAGE_SIZE), Image.Resampling.LANCZOS
     )
     input_array = np.array(input_image)
+    print("Input image loaded and preprocessed.")
 
     # Initialize output array
     output_array = np.zeros((OUTPUT_IMAGE_SIZE, OUTPUT_IMAGE_SIZE, 3), dtype=np.uint8)
 
     # Prepare element details and KD-tree
     element_details = get_element_details(elements_folder)
+    print("Building color search tree...")
     color_tree = cKDTree([ed.average_color for ed in element_details])
+    print("Color search tree built.")
 
+    # Calculate total number of chunks
+    total_chunks = ((OUTPUT_IMAGE_SIZE + CHUNK_SIZE - 1) // CHUNK_SIZE) ** 2
+
+    print(f"Processing {total_chunks} chunks in parallel...")
     # Process chunks in parallel
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = []
+        # Submit all chunk processing tasks
         for y in range(0, OUTPUT_IMAGE_SIZE, CHUNK_SIZE):
             for x in range(0, OUTPUT_IMAGE_SIZE, CHUNK_SIZE):
                 futures.append(
@@ -103,16 +118,26 @@ def create_mosaic(input_image_path, output_image_path, elements_folder):
                     )
                 )
 
-        # Collect results and update output array
-        for future in concurrent.futures.as_completed(futures):
+        # Collect results and update output array with progress bar
+        completed = 0
+        for future in tqdm(
+            concurrent.futures.as_completed(futures),
+            total=len(futures),
+            desc="Processing chunks",
+        ):
             chunk_array, start_x, start_y = future.result()
             chunk_height, chunk_width = chunk_array.shape[:2]
             output_array[
                 start_y : start_y + chunk_height, start_x : start_x + chunk_width
             ] = chunk_array
+            completed += 1
+
+    print("All chunks processed.")
 
     # Save the final image
+    print("Saving final mosaic image...")
     Image.fromarray(output_array).save(output_image_path)
+    print(f"Mosaic image saved to {output_image_path}")
 
 
 if __name__ == "__main__":
