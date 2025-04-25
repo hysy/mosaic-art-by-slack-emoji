@@ -1,6 +1,10 @@
 import argparse
 import concurrent.futures
 import os
+import warnings
+
+# Suppress specific warnings from PIL
+warnings.filterwarnings("ignore", category=UserWarning, module="PIL.Image")
 
 import numpy as np
 from PIL import Image
