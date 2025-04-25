@@ -19,7 +19,6 @@ class ElementDetail:
         self.image_array = image_array
 
 
-# @lru_cache(maxsize=1024)
 def get_element_image_array(path):
     """Cache the resized element images as numpy arrays"""
     return np.array(Image.open(path).convert("RGB").resize((TILE_SIZE, TILE_SIZE)))
