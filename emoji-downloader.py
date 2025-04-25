@@ -1,10 +1,11 @@
 """
-Description: 
+Description:
     Download all custum emoji from slack
 
-Output: 
+Output:
     emoji_list/emoji_name.extension
 """
+
 import concurrent.futures
 import os
 import sys
@@ -12,6 +13,7 @@ import urllib.error
 import urllib.request
 
 import requests
+from tqdm import tqdm
 
 TOKEN = os.environ["SLACK_TOKEN"]
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
@@ -57,8 +59,18 @@ if __name__ == "__main__":
             dst_path = os.path.join(DL_DIR, os.path.basename(name + "." + file_format))
             futures.append(executor.submit(download_file, url, dst_path))
 
-        for future in concurrent.futures.as_completed(futures):
+        total_emojis = len(futures)
+        print(f"Download started: Total {total_emojis} emojis")
+
+        for future in tqdm(
+            concurrent.futures.as_completed(futures),
+            total=total_emojis,
+            desc="Downloading emojis",
+            unit="emoji",
+        ):
             try:
                 future.result()
             except Exception as e:
                 print(e, file=sys.stderr)
+
+        print(f"Download completed: {total_emojis} emojis saved to {DL_DIR}")
